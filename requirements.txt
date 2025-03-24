@@ -3,3 +3,4 @@ requests
 openai
 gtts
 telethon
+python-dotenv
