@@ -132,3 +132,20 @@ except KeyboardInterrupt:
     print("❌ Bot Stopped")
 except Exception as e:
     print(f"⚠️ Error: {e}")
+
+load_dotenv()  # .env File Load Karna
+
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+print("🔍 API_ID:", API_ID)
+print("🔍 API_HASH:", API_HASH)
+print("🔍 BOT_TOKEN:", BOT_TOKEN[:10] + "******")  # Safe Print
+print("🔍 OPENAI_API_KEY:", OPENAI_API_KEY[:10] + "******")  # Safe Print
+
+if API_ID is None or API_HASH is None or BOT_TOKEN is None or OPENAI_API_KEY is None:
+    raise ValueError("⚠️ ERROR: Environment variables missing! Check .env file or Railway settings.")
+
+API_ID = int(API_ID)  # Convert API_ID to int
