@@ -1,113 +1,134 @@
-import asyncio
 import os
 import random
-import requests
-import openai
-from gtts import gTTS
+import asyncio
+import time
 from telethon import TelegramClient, events, functions
-from dotenv import load_dotenv  # Load env variables
+from openai import OpenAI
+from gtts import gTTS
+from dotenv import load_dotenv
 
-# 🔹 Load environment variables from config.env
-load_dotenv("config.env")
+load_dotenv()
 
+# 🔥 API Keys
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# OpenAI API Setup
-openai.api_key = OPENAI_API_KEY
+# 🤖 Initialize Telegram Bot
+client = TelegramClient("bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
+ai_client = OpenAI(api_key=OPENAI_API_KEY)
 
-# 📲 Telegram Client
-bot = TelegramClient('chatbot_session', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
-
-# 🎭 Sticker Collection
-STICKERS = [
-    "CAACAgUAAxkBAAEJmYxlKYVKh_d_5TkArQtMkSPyUnT4QAACaAoAApO4aFUs5T8-yxtM8y8E",
-    "CAACAgEAAxkBAAEJmY1lKYWKjDXNLOV33PK5ZLqlg8_l-wACwwMAAvAuSULz6wtnbpGcmS8E",
-    "CAACAgEAAxkBAAEJmY9lKYXQfHn1Us3DsqidMo2bc6nH1QACYAoAAm7ISUc0CHtrbEvM2i8E",
-    "CAACAgEAAxkBAAEJmZBlKYX7HpTuU1hohMafoyLV_M2hbgACdA8AAm_hSUE3ht-KqEU9ji8E"
+# 🎭 Custom Sticker Pack
+stickers = [
+    "CAACAgUAAxkBAAELe6VlX8CnQjCFbNq3J4bYcYGG-GYxXwACtwIAAnH9oFWI0Dvo-I_o_jAE",
+    "CAACAgUAAxkBAAELe6hlX8Cp81oAF0Q0dfJKFbrgu0sxlAACpgIAAnH9oFVoPiT2PxuoHTAE"
 ]
 
-# 🎭 Female-Style Response Function
-async def get_female_response(user_message):
-    prompt = f"""
-    Tu ek masti bhari ladki hai jo Telegram pe groups me chat karti hai.
-    Teri baatein engaging, thodi flirty aur natural honi chahiye.
-    Message: "{user_message}"
-    Reply kar ek ladki ki tarah:
-    """
-    response = openai.ChatCompletion.create(
+# 📸 Auto DP Change Images
+dp_images = ["dp1.jpg", "dp2.jpg", "dp3.jpg"]
+
+# 🕐 Cooldown System
+last_message_time = {}
+
+# 🌟 Hinglish AI Chat Function
+def get_ai_reply(user_message):
+    prompt = f"Mix Hindi + English me ek smart aur funny reply de: {user_message}"
+    response = ai_client.completions.create(
         model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=100
     )
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content.strip()
 
-# 🎤 Convert Text to Voice (Female AI Voice)
-def text_to_voice(text, filename="voice_reply.mp3"):
-    tts = gTTS(text, lang="hi")  # Hinglish AI female voice
-    tts.save(filename)
-    return filename
+# 🔊 Generate Voice Reply
+def generate_voice(text):
+    tts = gTTS(text=text, lang="hi")
+    voice_path = "voice_reply.mp3"
+    tts.save(voice_path)
+    return voice_path
 
-# 🔄 Auto-Reply System (Text + Voice + Stickers)
-@bot.on(events.NewMessage(pattern=".*"))
-async def chat_handler(event):
-    if event.is_group:
-        user_msg = event.message.text
-        sender = await event.get_sender()
-        if sender.bot:
-            return
-
+# 🔄 Auto Profile Picture Change (Every Hour)
+async def change_profile_pic():
+    while True:
+        image = random.choice(dp_images)
         try:
-            typing = asyncio.create_task(event.reply("💬 Typing..."))
-            await asyncio.sleep(random.randint(2, 5))
-            reply = await get_female_response(user_msg)
-            await typing.cancel()
-
-            action = random.choice(["text", "voice", "sticker"])
-
-            if action == "voice":
-                voice_file = text_to_voice(reply)
-                await event.reply(file=voice_file)
-            elif action == "sticker":
-                sticker_id = random.choice(STICKERS)
-                await event.reply(file=sticker_id)
-            else:
-                await event.reply(reply)
-
-        except Exception as e:
-            print(f"Error: {e}")  # Debugging ke liye
-            await event.reply("😔 Sorry, abhi busy hoon!")
-
-# 🔄 Change Profile Picture (DP)
-@bot.on(events.NewMessage(pattern="/changedp"))
-async def change_dp(event):
-    sender = await event.get_sender()
-
-    # ✅ Ensure only bot admin can change DP
-    if not sender or not sender.is_self:
-        return await event.reply("❌ Sirf bot admin DP change kar sakta hai!")
-
-    # ✅ Download new DP from user's message
-    if event.photo:
-        photo = await event.download_media()
-        
-        try:
-            # ✅ Change profile photo
-            await bot(functions.photos.UploadProfilePhotoRequest(
-                file=await bot.upload_file(photo)
+            await client(functions.photos.UploadProfilePhotoRequest(
+                file=await client.upload_file(image)
             ))
-            await event.reply("✅ DP Successfully Changed! 🎉")
+            print(f"✅ Auto Profile Picture Updated: {image}")
         except Exception as e:
-            await event.reply(f"❌ Error: {e}")
+            print(f"⚠️ DP Change Error: {e}")
+        await asyncio.sleep(3600)  # DP Change every 1 hour
+
+# 📨 Handle Messages (Group & Private)
+@client.on(events.NewMessage)
+async def handle_message(event):
+    global last_message_time
+    user_id = event.sender_id
+    current_time = time.time()
+
+    # 🕐 Cooldown (5 sec per user)
+    if user_id in last_message_time and (current_time - last_message_time[user_id]) < 5:
+        return  
+
+    last_message_time[user_id] = current_time  # Update last message time
+
+    user_message = event.message.text.strip()
+    if not user_message:
+        return
+
+    # 🤖 AI Reply
+    ai_reply = get_ai_reply(user_message)
+
+    # 📢 Group Message Log
+    if event.is_group:
+        print(f"📢 Group Message: {user_message}")
     else:
-        await event.reply("❌ Please reply to a **photo** to change DP!")
+        print(f"👤 Private Message: {user_message}")
 
-# 🚀 Bot Start
+    # 📝 Send AI Reply
+    await event.reply(ai_reply + " ❤️🥰")
+
+    # 🎭 Send Random Sticker
+    await asyncio.sleep(1)
+    await client.send_file(event.chat_id, file=random.choice(stickers))
+
+    # 🔊 Send Voice Message
+    voice_file = generate_voice(ai_reply)
+    await client.send_file(event.chat_id, voice_file, voice_note=True)
+
+# 🔄 Manual DP Change Command
+@client.on(events.NewMessage(pattern="/changedp"))
+async def change_dp_command(event):
+    chat_id = event.chat_id
+
+    # 🔄 Random DP Select
+    image = random.choice(dp_images)
+
+    try:
+        # 📸 DP Change Karna
+        await client(functions.photos.UploadProfilePhotoRequest(
+            file=await client.upload_file(image)
+        ))
+        print(f"✅ DP Changed: {image}")
+
+        # 📤 Image Send Karna (Confirmation)
+        await client.send_file(chat_id, image, caption="✨ DP Updated Successfully!")
+
+    except Exception as e:
+        print(f"⚠️ DP Change Error: {e}")
+        await event.reply("❌ DP change failed, try again later!")
+
+# 🚀 Start Bot
 async def main():
-    print("💖 Hinglish ChatBot Ready!")
-    await bot.run_until_disconnected()
+    print("🤖 Bot is running in Groups & Private Chats...")
+    asyncio.create_task(change_profile_pic())  # Auto DP Change Task
+    await client.run_until_disconnected()
 
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    print("❌ Bot Stopped")
+except Exception as e:
+    print(f"⚠️ Error: {e}")
