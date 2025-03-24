@@ -32,10 +32,10 @@ STICKERS = [
 # 🎭 Female-Style Response Function
 async def get_female_response(user_message):
     prompt = f"""
-    You are a friendly, fun-loving female Telegram user chatting in a group. 
-    Your responses should be engaging, slightly flirty, and natural.
+    Tu ek masti bhari ladki hai jo Telegram pe groups me chat karti hai.
+    Teri baatein engaging, thodi flirty aur natural honi chahiye.
     Message: "{user_message}"
-    Reply like a girl: 
+    Reply kar ek ladki ki tarah:
     """
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -45,7 +45,7 @@ async def get_female_response(user_message):
 
 # 🎤 Convert Text to Voice (Female AI Voice)
 def text_to_voice(text, filename="voice_reply.mp3"):
-    tts = gTTS(text, lang="en")  # English AI female voice
+    tts = gTTS(text, lang="hi")  # Hinglish AI female voice
     tts.save(filename)
     return filename
 
@@ -59,7 +59,7 @@ async def chat_handler(event):
             return
 
         try:
-            typing = asyncio.create_task(event.respond("💬 Typing..."))
+            typing = asyncio.create_task(event.reply("💬 Typing..."))
             await asyncio.sleep(random.randint(2, 5))
             reply = await get_female_response(user_msg)
             await typing.cancel()
@@ -68,19 +68,46 @@ async def chat_handler(event):
 
             if action == "voice":
                 voice_file = text_to_voice(reply)
-                await event.respond(file=voice_file)
+                await event.reply(file=voice_file)
             elif action == "sticker":
                 sticker_id = random.choice(STICKERS)
-                await event.respond(file=sticker_id)
+                await event.reply(file=sticker_id)
             else:
-                await event.respond(reply)
+                await event.reply(reply)
 
         except Exception as e:
-            await event.respond("😔 Sorry, I'm busy right now!")
+            print(f"Error: {e}")  # Debugging ke liye
+            await event.reply("😔 Sorry, abhi busy hoon!")
+
+# 🔄 Change Profile Picture (DP)
+@bot.on(events.NewMessage(pattern="/changedp"))
+async def change_dp(event):
+    sender = await event.get_sender()
+
+    # ✅ Ensure only bot admin can change DP
+    if not sender or not sender.is_self:
+        return await event.reply("❌ Sirf bot admin DP change kar sakta hai!")
+
+    # ✅ Download new DP from user's message
+    if event.photo:
+        photo = await event.download_media()
+        
+        try:
+            # ✅ Change profile photo
+            await bot(functions.photos.UploadProfilePhotoRequest(
+                file=await bot.upload_file(photo)
+            ))
+            await event.reply("✅ DP Successfully Changed! 🎉")
+        except Exception as e:
+            await event.reply(f"❌ Error: {e}")
+    else:
+        await event.reply("❌ Please reply to a **photo** to change DP!")
 
 # 🚀 Bot Start
 async def main():
-    print("💖 Female ChatBot with Stickers & AI Running...")
+    print("💖 Hinglish ChatBot Ready!")
     await bot.run_until_disconnected()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
