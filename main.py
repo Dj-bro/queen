@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 🔥 API Keys
-API_ID = int(os.getenv("API_ID"))
+API_ID = (os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
