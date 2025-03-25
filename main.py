@@ -10,10 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 🔥 API Keys
-API_ID = (os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+API_ID = 19485675
+API_HASH = "14e59046dacdc958e5f1936019fb064b"
+BOT_TOKEN = "8146390672:AAEnu0jemPtpWHVVIfVy68xj___NQu02imU"
+OPENAI_API_KEY = "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"
 
 # 🤖 Initialize Telegram Bot
 client = TelegramClient("bot", API_ID, API_HASH).start(bot_token=BOT_TOKEN)
